@@ -9,11 +9,11 @@ router.get("/profile", authenticateToken, async (req, res) => {
 
   const sql = `
       SELECT 
-          s.student_id, s.student_number, s.student_name, 
+          s.student_id, s.student_number, s.student_status, s.student_name, 
           s.course, s.years, s.semester, 
           a.student_username, a.student_email,
           GROUP_CONCAT(DISTINCT CONCAT_WS('|', c.course_code, c.sched_day, c.durationIn, c.durationOut, c.room, c.professor) SEPARATOR ';') AS schedules,
-          GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.output, r.task, r.dates, r.scores) SEPARATOR ';') AS records
+          GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.subjects, r.task, r.dates, r.scores) SEPARATOR ';') AS records
       FROM students s
       LEFT JOIN student_accounts a ON s.student_id = a.student_id
       LEFT JOIN class_sched c ON s.student_id = c.student_id
@@ -63,6 +63,7 @@ router.get("/students", async (req, res) => {
     SELECT 
       s.student_id,
       s.student_number,
+      s.student_status,
       s.student_name,
       s.course,
       s.years,
@@ -91,11 +92,11 @@ router.get("/student/:student_number", async (req, res) => {
   const { student_number } = req.params;
   const sql = `
         SELECT 
-            s.student_id, s.student_number, s.student_name, 
+            s.student_id, s.student_number, s.student_status, s.student_name, 
             s.course, s.years, s.semester, 
             a.student_username, a.student_email,  -- FIXED column names
             GROUP_CONCAT(DISTINCT CONCAT_WS('|', c.course_code, c.sched_day, c.durationIn, c.durationOut, c.room, c.professor) SEPARATOR ';') AS schedules,
-            GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.output, r.task, r.dates, r.scores) SEPARATOR ';') AS records
+            GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.subjects, r.task, r.dates, r.scores) SEPARATOR ';') AS records
         FROM students s
         LEFT JOIN student_accounts a ON s.student_id = a.student_id  -- FIXED table join
         LEFT JOIN class_sched c ON s.student_id = c.student_id
@@ -157,8 +158,8 @@ router.get("/student/records/:student_number", async (req, res) => {
 
   const sql = `
     SELECT 
-      s.student_number,
-      GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.output, r.task, r.dates, r.scores) SEPARATOR ';') AS records
+      s.student_number, s.student_status,
+      GROUP_CONCAT(DISTINCT CONCAT_WS('|', r.subjects, r.task, r.dates, r.scores) SEPARATOR ';') AS records
     FROM students s
     LEFT JOIN records r ON s.student_id = r.student_id
     WHERE s.student_number = ?
@@ -174,10 +175,11 @@ router.get("/student/records/:student_number", async (req, res) => {
     // Format the result into a simplified object with student_number and records
     const studentData = {
       student_number: results[0].student_number,
+      student_status: results[0].student_status,
       records: results[0].records
         ? results[0].records.split(";").map((r) => {
-            const [output, task, dates, scores] = r.split("|");
-            return { output, task, dates, scores };
+            const [subjects, task, dates, scores] = r.split("|");
+            return { subjects, task, dates, scores };
           })
         : [],
     };
